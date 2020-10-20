@@ -1,6 +1,7 @@
 package es.upm.miw.SolitarioCelta;
 
 import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -8,6 +9,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.RadioButton;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
@@ -16,14 +18,22 @@ import com.google.android.material.snackbar.Snackbar;
 
 import org.jetbrains.annotations.NotNull;
 
+import java.io.BufferedReader;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+
 import es.upm.miw.SolitarioCelta.model.SCeltaViewModel;
 import es.upm.miw.SolitarioCelta.model.SCeltaViewModelFactory;
 
 public class MainActivity extends AppCompatActivity {
-
+    private static final String FILE_NAME = "config.txt";
     protected final String LOG_TAG = "MiW";
     protected final Integer ID = 2021;
     protected SCeltaViewModel miJuegoVM;
+    // protected Game game;
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -34,7 +44,8 @@ public class MainActivity extends AppCompatActivity {
                     new SCeltaViewModelFactory(getApplication(), ID)
                     )
                 .get(SCeltaViewModel.class);
-        mostrarTablero();
+
+        laodGame();
     }
 
     /**
@@ -99,7 +110,15 @@ public class MainActivity extends AppCompatActivity {
                 return true;
 
             // TODO!!! resto opciones
-
+            case R.id.opcReiniciarPartida:
+                resetGame();
+                return true;
+            case R.id.opcGuardarPartida:
+                saveFile();
+                return true;
+            case R.id.opcRecuperarPartida:
+                laodGame();
+                return true;
             default:
                 Snackbar.make(
                         findViewById(android.R.id.content),
@@ -109,5 +128,93 @@ public class MainActivity extends AppCompatActivity {
                         .show();
         }
         return true;
+    }
+
+    protected void resetGame(){
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.txtAlertReiniciarTitle)
+            .setMessage(R.string.txtAlertReiniciarBody)
+            .setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    miJuegoVM.reiniciar();
+                    mostrarTablero();
+                }
+            })
+            .setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+                @Override
+                public void onClick(DialogInterface dialogInterface, int i) {
+                    // nothing
+                }
+            })
+            .show();
+    }
+
+    public void laodGame(){
+        loadFile();
+        mostrarTablero();
+    }
+
+    public void saveFile() {
+        FileOutputStream fos = null;
+
+        try {
+            fos = openFileOutput(FILE_NAME, MODE_PRIVATE);
+            String board = miJuegoVM.serializaTablero();
+            fos.write(board.getBytes());
+
+            Snackbar.make(
+                    findViewById(android.R.id.content),
+                    "Saved to " + getFilesDir() + "/" + FILE_NAME,
+                    Snackbar.LENGTH_LONG
+            ).show();
+
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fos != null) {
+                try {
+                    fos.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
+
+    public void loadFile(){
+        FileInputStream fis = null;
+
+        try {
+            fis = openFileInput(FILE_NAME);
+            InputStreamReader isr = new InputStreamReader(fis);
+            BufferedReader br = new BufferedReader(isr);
+            StringBuilder sb = new StringBuilder();
+            String text;
+
+            while ((text = br.readLine()) != null) {
+                sb.append(text);
+            }
+
+            miJuegoVM.deserializaTablero(sb.toString());
+
+        } catch (FileNotFoundException e) {
+            Toast.makeText(this, "File " + getFilesDir() + "/" + FILE_NAME
+                    + " does not exist", Toast.LENGTH_LONG).show();
+            //e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            if (fis != null) {
+                try {
+                    fis.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 }
